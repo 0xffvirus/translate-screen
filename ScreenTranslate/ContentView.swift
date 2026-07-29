@@ -226,11 +226,21 @@ private struct LanguageRow: View {
 
 private struct ProcessingView: View {
     let phase: AppState.Phase
+    let completedBlockCount: Int
+    let totalBlockCount: Int
 
     private var content: (String, String) {
         switch phase {
         case .reading: ("Reading screen…", "Finding text and its position")
-        case .translating: ("Translating…", "Keeping the original layout")
+        case .translating:
+            if totalBlockCount > 0 {
+                (
+                    "Translating…",
+                    "Completed \(completedBlockCount) of \(totalBlockCount) text regions"
+                )
+            } else {
+                ("Translating…", "Keeping the original layout")
+            }
         case .preparing: ("Preparing translation…", "Almost ready")
         default: ("Working…", "")
         }
@@ -238,9 +248,18 @@ private struct ProcessingView: View {
 
     var body: some View {
         VStack(spacing: 22) {
-            ProgressView()
-                .controlSize(.large)
+            if phase == .translating, totalBlockCount > 0 {
+                ProgressView(
+                    value: Double(completedBlockCount),
+                    total: Double(totalBlockCount)
+                )
+                .frame(width: 180)
                 .tint(.blue)
+            } else {
+                ProgressView()
+                    .controlSize(.large)
+                    .tint(.blue)
+            }
             VStack(spacing: 6) {
                 Text(content.0).font(.title3.weight(.semibold))
                 Text(content.1).font(.subheadline).foregroundStyle(.secondary)
@@ -262,7 +281,11 @@ struct TranslationResultView: View {
             Group {
                 switch appState.phase {
                 case .reading, .translating, .preparing:
-                    ProcessingView(phase: appState.phase)
+                    ProcessingView(
+                        phase: appState.phase,
+                        completedBlockCount: appState.translatedBlockCount,
+                        totalBlockCount: appState.totalBlockCount
+                    )
                 case .failed(let message):
                     failureView(message)
                 case .ready:
