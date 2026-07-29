@@ -8,6 +8,7 @@
 [![Platform](https://img.shields.io/badge/Platform-iOS-000000?logo=apple&logoColor=white)](https://developer.apple.com/ios/)
 [![UI](https://img.shields.io/badge/UI-SwiftUI-007AFF?logo=swift&logoColor=white)](https://developer.apple.com/xcode/swiftui/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-D22128?logo=apache&logoColor=white)](LICENSE)
+[![Build IPA](https://github.com/0xffvirus/translate-screen/actions/workflows/release-ipa.yml/badge.svg)](https://github.com/0xffvirus/translate-screen/actions/workflows/release-ipa.yml)
 [![Built with](https://img.shields.io/badge/Built%20with-Vision%20%2B%20Translation-5856D6)](https://developer.apple.com/documentation/)
 
 See foreign text → press the Action Button → see the translated screen.
@@ -131,6 +132,29 @@ xcodebuild \
 ```
 
 The first translation may ask permission to download the required Apple language model.
+
+## IPA Releases
+
+GitHub Actions builds an unsigned IPA for every version tag and attaches it to the corresponding GitHub Release. Unsigned IPAs cannot be installed directly on a standard iPhone; users must sign them with their own Apple ID or certificate using a compatible sideloading tool.
+
+Each release includes:
+
+- `TranslateScreen-<version>-unsigned.ipa`
+- `TranslateScreen-<version>-unsigned.ipa.sha256`
+
+To publish a release:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+The tag version becomes the app's `CFBundleShortVersionString`. GitHub automatically generates release notes and uploads the IPA after a successful build.
+
+To test IPA creation without publishing a release, open **Actions → Build IPA → Run workflow**. The IPA will be available under the workflow run's **Artifacts** section.
+
+> [!WARNING]
+> Never commit Apple signing certificates, private keys, provisioning profiles, or App Store Connect credentials. A future signed distribution workflow should store them as encrypted GitHub Actions secrets.
 
 ## Project Structure
 

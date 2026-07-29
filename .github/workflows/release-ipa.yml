@@ -1,0 +1,117 @@
+name: Build IPA
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  PROJECT: ScreenTranslate.xcodeproj
+  SCHEME: ScreenTranslate
+  APP_NAME: ScreenTranslate
+
+jobs:
+  build:
+    name: Build unsigned IPA
+    runs-on: macos-26
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Select Xcode 26.6
+        run: sudo xcode-select --switch /Applications/Xcode_26.6.app/Contents/Developer
+
+      - name: Resolve version and artifact name
+        id: metadata
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="$(
+              xcodebuild \
+                -project "$PROJECT" \
+                -scheme "$SCHEME" \
+                -showBuildSettings |
+              awk '/MARKETING_VERSION/ { print $3; exit }'
+            )"
+          fi
+
+          if [[ -z "$VERSION" ]]; then
+            echo "Could not determine the app version." >&2
+            exit 1
+          fi
+
+          IPA_NAME="TranslateScreen-$VERSION-unsigned.ipa"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "IPA_NAME=$IPA_NAME" >> "$GITHUB_ENV"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "ipa_name=$IPA_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Build release app
+        run: |
+          xcodebuild clean build \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            MARKETING_VERSION="$VERSION"
+
+      - name: Package IPA
+        shell: bash
+        run: |
+          APP_PATH="$RUNNER_TEMP/DerivedData/Build/Products/Release-iphoneos/$APP_NAME.app"
+          PACKAGE_PATH="$RUNNER_TEMP/ipa-package"
+
+          if [[ ! -d "$APP_PATH" ]]; then
+            echo "Built application was not found at $APP_PATH" >&2
+            exit 1
+          fi
+
+          mkdir -p "$PACKAGE_PATH/Payload"
+          cp -R "$APP_PATH" "$PACKAGE_PATH/Payload/"
+
+          (
+            cd "$PACKAGE_PATH"
+            COPYFILE_DISABLE=1 zip -qry "$GITHUB_WORKSPACE/$IPA_NAME" Payload
+          )
+
+          shasum -a 256 "$IPA_NAME" > "$IPA_NAME.sha256"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TranslateScreen-${{ steps.metadata.outputs.version }}-unsigned
+          path: |
+            ${{ steps.metadata.outputs.ipa_name }}
+            ${{ steps.metadata.outputs.ipa_name }}.sha256
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" \
+              "$IPA_NAME" \
+              "$IPA_NAME.sha256" \
+              --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              "$IPA_NAME" \
+              "$IPA_NAME.sha256" \
+              --verify-tag \
+              --title "Translate Screen $GITHUB_REF_NAME" \
+              --generate-notes
+          fi
