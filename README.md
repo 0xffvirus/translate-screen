@@ -14,6 +14,20 @@ See foreign text → press the Action Button → see the translated screen.
 
 </div>
 
+## Preview
+
+<p align="center">
+  <img
+    src="screenshots/screenshotExample.png"
+    alt="Translate Screen displaying English translations over text in a Chinese shopping app"
+    width="420"
+  />
+</p>
+
+<p align="center">
+  <sub>Translated text remains aligned with the original interface while preserving the surrounding visual context.</sub>
+</p>
+
 ## Overview
 
 Translate Screen is a native iPhone utility that recognizes text in a screenshot, translates it on-device, and places the translation over the original text in approximately the same location.
